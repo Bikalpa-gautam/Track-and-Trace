@@ -1,0 +1,542 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Track & Trace: Bikalpa</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#1a1a1a;
+    display:flex; justify-content:center; align-items:flex-start;
+    padding:32px 20px;
+    font-family:'Inter',sans-serif;
+  }
+
+  /* A3 landscape */
+  .slide {
+    width:1587px; height:1123px;
+    background:#F5F3EF;
+    position:relative; overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,0.8);
+    display:flex; flex-direction:column;
+  }
+
+  /* ─── TOPBAR ─── */
+  .topbar {
+    background:#1B3A26; height:62px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 32px 0 16px; border-bottom:3px solid #4CAF6A;
+    gap:12px;
+  }
+  .tb-left { display:flex; align-items:center; gap:16px; flex:1; }
+  .tb-tag { background:#4CAF6A; color:#fff; font-size:12px; font-weight:800; letter-spacing:2px; text-transform:uppercase; padding:6px 15px; border-radius:3px; white-space:nowrap; }
+  .tb-title { color:#fff; font-size:20px; font-weight:700; }
+  .tb-right { color:#7DC893; font-family:'Space Mono',monospace; font-size:12px; line-height:1.7; text-align:right; white-space:nowrap; }
+
+  /* ─── INVENTORY TOGGLE BUTTON ─── */
+  #inv-btn {
+    display:flex; align-items:center; gap:9px;
+    background:rgba(76,175,106,0.18); border:1.5px solid #4CAF6A;
+    color:#fff; font-family:'Inter',sans-serif; font-size:13px; font-weight:700;
+    padding:9px 16px; border-radius:5px; cursor:pointer;
+    white-space:nowrap; flex-shrink:0;
+    transition:background 0.2s;
+    letter-spacing:0.3px;
+  }
+  #inv-btn:hover { background:rgba(76,175,106,0.35); }
+  #inv-btn .lines { display:flex; flex-direction:column; gap:4px; }
+  #inv-btn .lines span { display:block; width:20px; height:2.5px; background:#4CAF6A; border-radius:2px; transition:transform 0.2s, opacity 0.2s; }
+  #inv-btn.open .lines span:nth-child(1) { transform:translateY(6.5px) rotate(45deg); }
+  #inv-btn.open .lines span:nth-child(2) { opacity:0; }
+  #inv-btn.open .lines span:nth-child(3) { transform:translateY(-6.5px) rotate(-45deg); }
+
+  /* ─── BODY ─── */
+  .body {
+    flex:1; display:flex; flex-direction:row;
+    overflow:hidden; min-height:0;
+  }
+
+  /* ─── LEFT INVENTORY ─── */
+  .inv-col {
+    width:0; min-width:0; flex-shrink:0;
+    background:#fff; border-right:2px solid #D8D4CC;
+    display:flex; flex-direction:column; overflow:hidden;
+    transition:width 0.35s cubic-bezier(0.4,0,0.2,1);
+  }
+  .inv-col.open { width:370px; }
+
+  .inv-inner { width:370px; display:flex; flex-direction:column; overflow-y:auto; flex:1; min-height:0; }
+
+  .inv-head {
+    background:#1B3A26; color:#A8D8B4;
+    padding:13px 18px; font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; font-weight:700; font-family:'Space Mono',monospace; flex-shrink:0;
+  }
+  .inv-head span { color:#fff; font-size:18px; font-weight:800; display:block; margin-bottom:2px; letter-spacing:0; text-transform:none; font-family:'Inter',sans-serif; }
+
+  .section-label {
+    padding:7px 16px; font-size:10px; letter-spacing:2px; text-transform:uppercase;
+    font-weight:800; font-family:'Space Mono',monospace;
+  }
+  .section-label.selected { color:#4CAF6A; background:#F0FAF2; border-bottom:1px solid #D8EEE0; }
+  .section-label.notused  { color:#BBB; background:#F9F9F7; border-bottom:1px dashed #E0E0D8; }
+
+  .inv-row {
+    display:grid; grid-template-columns:38px 1fr 24px;
+    align-items:center; gap:7px;
+    padding:7px 16px; border-bottom:1px solid #F2F0EC;
+    position:relative;
+  }
+  .inv-row.used { background:#F2FAF4; }
+  .inv-row.used::before { content:''; position:absolute; left:0; top:0; bottom:0; width:5px; border-radius:0 2px 2px 0; }
+  .inv-row.c1::before { background:#E05A2B; }
+  .inv-row.c2::before { background:#D4A020; }
+  .inv-row.c3::before { background:#9B59B6; }
+  .inv-row.c4::before { background:#2980B9; }
+  .inv-row.c5::before { background:#27AE60; }
+  .inv-row.c6::before { background:#16A085; }
+  .inv-row.c7::before { background:#935116; }
+  .inv-row.unused { opacity:0.3; }
+
+  .inv-qty { font-size:17px; font-weight:900; color:#1B3A26; font-family:'Space Mono',monospace; text-align:right; line-height:1; }
+  .inv-row.unused .inv-qty { color:#AAA; }
+  .inv-name { font-size:13px; font-weight:700; color:#1B3A26; line-height:1.3; }
+  .inv-dim  { font-size:10.5px; color:#888; font-family:'Space Mono',monospace; }
+  .inv-row.unused .inv-name { font-weight:500; color:#666; }
+  .go-arrow { color:#4CAF6A; font-size:16px; font-weight:900; line-height:1; }
+  .inv-row.unused .go-arrow { display:none; }
+
+  /* ─── RIGHT ─── */
+  .right-col {
+    flex:1; display:flex; flex-direction:column;
+    padding:18px 26px 0 26px; gap:10px; overflow:hidden; min-height:0;
+  }
+  .right-head {
+    display:flex; justify-content:space-between; align-items:baseline; flex-shrink:0;
+  }
+  .right-title { font-size:20px; font-weight:800; color:#1B3A26; }
+  .right-sub { font-size:12px; color:#888; font-family:'Space Mono',monospace; letter-spacing:0.5px; }
+
+  .main-view { flex:1; min-height:0; position:relative; }
+  .main-view svg { width:100%; height:100%; display:block; }
+
+  /* ─── CAPTION ─── */
+  .caption {
+    background:#1B3A26; padding:16px 44px; flex-shrink:0;
+    display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:center;
+  }
+  .cap-icon { font-size:24px; }
+  .cap-text { color:#C8EBD4; font-size:13.5px; line-height:1.75; }
+  .cap-text em { color:#fff; font-style:normal; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="slide">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="tb-left">
+      <span class="tb-tag">Track &amp; Trace</span>
+      <span class="tb-title">ETH Inventory → Selected materials → Where each goes in the design</span>
+    </div>
+    <button id="inv-btn" onclick="toggleInv()" title="Show / hide stock inventory">
+      <div class="lines">
+        <span></span><span></span><span></span>
+      </div>
+      Stock Inventory
+    </button>
+    <div class="tb-right">
+      <span>Circularity Studio · ETH Zürich · Group Project 2026</span>
+      <span>Temporary Circular Pavilion · Midterm Proposal</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- ══ LEFT: INVENTORY ══ -->
+    <div class="inv-col" id="inv-col">
+      <div class="inv-inner">
+      <div class="inv-head">
+        <span>ETH Stock Inventory</span>
+        measurements.xlsx (full list)
+      </div>
+
+      <div class="section-label selected">✓ Selected for this design</div>
+
+      <div class="inv-row used c1">
+        <div class="inv-qty">8×</div>
+        <div>
+          <div class="inv-name">Big Truss (painted)</div>
+          <div class="inv-dim">719×6×271 cm · 4 floor + 2×2 wall</div>
+        </div>
+        <div class="go-arrow">→</div>
+      </div>
+      <div class="inv-row used c5">
+        <div class="inv-qty">2×</div>
+        <div>
+          <div class="inv-name">Column Beams</div>
+          <div class="inv-dim">19×9 cm · cut 350→270 cm · 2 opp. faces</div>
+        </div>
+        <div class="go-arrow">→</div>
+      </div>
+      <div class="inv-row used c4">
+        <div class="inv-qty">4×</div>
+        <div>
+          <div class="inv-name">Roof Beams</div>
+          <div class="inv-dim">19×9 cm · hip rafters · tarp draped over</div>
+        </div>
+        <div class="go-arrow">→</div>
+      </div>
+      <div class="inv-row used c4" style="opacity:0.7">
+        <div class="inv-qty">1×</div>
+        <div>
+          <div class="inv-name">Roof Tarp</div>
+          <div class="inv-dim">draped over 4 roof beams · new purchase</div>
+        </div>
+        <div class="go-arrow">→</div>
+      </div>
+      <div class="inv-row used c2">
+        <div class="inv-qty" style="font-size:9px">var</div>
+        <div>
+          <div class="inv-name">Flooring Boards</div>
+          <div class="inv-dim">11.5 cm wide · var. lengths · 1.5 cm thick</div>
+        </div>
+        <div class="go-arrow">→</div>
+      </div>
+      <div class="inv-row used c3">
+        <div class="inv-qty" style="font-size:9px">var</div>
+        <div>
+          <div class="inv-name">Brick Sokkel</div>
+          <div class="inv-dim">base support under floor trusses</div>
+        </div>
+        <div class="go-arrow">→</div>
+      </div>
+      <div class="inv-row used c6">
+        <div class="inv-qty">1×</div>
+        <div>
+          <div class="inv-name">Ring (steering wheel)</div>
+          <div class="inv-dim">central tension hub · rope anchor</div>
+        </div>
+        <div class="go-arrow">→</div>
+      </div>
+      <div class="inv-row used c7">
+        <div class="inv-qty" style="font-size:9px">var</div>
+        <div>
+          <div class="inv-name">Ropes</div>
+          <div class="inv-dim">tension lines · ring to truss corners</div>
+        </div>
+        <div class="go-arrow">→</div>
+      </div>
+      <div style="background:#FFF8E8;border-top:1px solid #FFE082;border-bottom:1px solid #FFE082;padding:7px 14px;font-size:8.5px;color:#8D5A00;line-height:1.5;">
+        <strong style="font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:1px;">FROM IFC MODEL:</strong><br>
+        <strong>8</strong> big trusses: 4 on floor and 4 on walls.<br>
+        <strong>6</strong> beams total: <strong>2</strong> vertical columns (2 opposite faces) + <strong>4</strong> roof beams (hip rafters, tarp over).<br>
+        Flooring boards on brick sokkel. Ring + ropes as tension hub.
+      </div>
+
+      <div class="section-label notused">✗ Remaining in inventory, not used</div>
+
+      <div class="inv-row unused"><div class="inv-qty">9×</div><div><div class="inv-name">Big Truss (surplus)</div><div class="inv-dim">719 × 6 × 271 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">2×</div><div><div class="inv-name">Medium Truss (painted)</div><div class="inv-dim">513 × 6 × 197 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">1×</div><div><div class="inv-name">Small Truss (painted)</div><div class="inv-dim">290 × 6 × 105 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">19×</div><div><div class="inv-name">Wooden beams (white)</div><div class="inv-dim">170–200 × 11 × 11 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">10×</div><div><div class="inv-name">Wooden beams (grey)</div><div class="inv-dim">200–300 × 10 × 10 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">40×</div><div><div class="inv-name">Wooden beams (new)</div><div class="inv-dim">200–300 × 10 × 10 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">15×</div><div><div class="inv-name">Windows large</div><div class="inv-dim">150 × 80 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">12×</div><div><div class="inv-name">Windows med/small</div><div class="inv-dim">75–110 × 80 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">2×</div><div><div class="inv-name">Doors wooden</div><div class="inv-dim">209–239 × 71–74 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">6×</div><div><div class="inv-name">Glulam timber</div><div class="inv-dim">140–250 × 60–125 cm</div></div><div></div></div>
+      <div class="inv-row unused"><div class="inv-qty">95×</div><div><div class="inv-name">Wood flat boards</div><div class="inv-dim">13 × 2.5 cm</div></div><div></div></div>
+    </div><!-- /inv-inner -->
+    </div><!-- /inv-col -->
+
+    <!-- ══ RIGHT: ANNOTATED IFC VIEW ══ -->
+    <div class="right-col">
+      <div class="right-head">
+        <div class="right-title">IFC Model: material roles and dimensions</div>
+        <div class="right-sub">IFC export · 6 beams: 2 vertical columns (2 faces) + 4 roof beams under tarp · ring &amp; ropes · flooring + brick sokkel</div>
+      </div>
+
+      <div class="main-view">
+        <!--
+          SVG coordinate space: 1200 × 790
+          image2.png (797×455) placed at x=10, y=10, w=710, h=405
+          image scale: 710/797 = 0.891 horiz, 405/455 = 0.890 vert
+
+          Key points in image2 (original px) → SVG coords:
+            Left outer post top:     (170, 42)  → (162, 47)
+            Left outer post bottom:  (170,412)  → (162,377)
+            Front face right end:    (422,412)  → (386,377)
+            Back face right end top: (730, 42)  → (661, 47)
+            Roof center area:        (430,100)  → (393,99)
+            Center post:             (318,115)  → (293,112)
+            Center post bottom:      (318,385)  → (293,353)
+            Front wall trusses:      (~230,280) → (215,259)
+            Right wall trusses:      (~560,280) → (509,259)
+            Horizontal purlin:       (~340,210) → (313,197)
+        -->
+        <svg viewBox="0 0 1200 790" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Arrow markers for each color -->
+            <marker id="m-c1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path d="M0,1.5 L8,4.5 L0,7.5" fill="none" stroke="#E05A2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+            <marker id="m-c2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path d="M0,1.5 L8,4.5 L0,7.5" fill="none" stroke="#D4A020" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+            <marker id="m-c3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path d="M0,1.5 L8,4.5 L0,7.5" fill="none" stroke="#9B59B6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+            <marker id="m-c4" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path d="M0,1.5 L8,4.5 L0,7.5" fill="none" stroke="#2980B9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+            <marker id="m-c5" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path d="M0,1.5 L8,4.5 L0,7.5" fill="none" stroke="#27AE60" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+            <marker id="m-c6" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path d="M0,1.5 L8,4.5 L0,7.5" fill="none" stroke="#16A085" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+            <marker id="m-c7" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path d="M0,1.5 L8,4.5 L0,7.5" fill="none" stroke="#935116" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+            <marker id="m-dim" markerWidth="7" markerHeight="7" refX="1" refY="3.5" orient="auto">
+              <path d="M6,1 L0,3.5 L6,6" fill="none" stroke="#555" stroke-width="1.3" stroke-linecap="round"/>
+            </marker>
+            <marker id="m-dim-r" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+              <path d="M0,1 L6,3.5 L0,6" fill="none" stroke="#555" stroke-width="1.3" stroke-linecap="round"/>
+            </marker>
+          </defs>
+
+          <!-- ══ BACKGROUND ══ -->
+          <rect width="1200" height="790" fill="#F8F7F3"/>
+
+          <!-- ══ MAIN IFC VIEW (Image Main) ══ -->
+          <!-- placed at x=10, y=10, w=710, h=405 -->
+          <image href="IFC angles/Image Main.png" x="10" y="10" width="710" height="405"
+                 preserveAspectRatio="xMidYMid meet"
+                 style="filter:drop-shadow(2px 4px 10px rgba(0,0,0,0.15))"/>
+
+          <!-- Image border -->
+          <rect x="10" y="10" width="710" height="405" fill="none" stroke="#CCC" stroke-width="1"/>
+
+          <!-- ══ DIMENSION LINES (drawn over the IFC image) ══ -->
+
+          <!-- HEIGHT: 271 cm — left post, from top (162,47) to bottom (162,377) -->
+          <line x1="85" y1="47"  x2="85" y2="377" stroke="#444" stroke-width="1.2"
+                marker-start="url(#m-dim)" marker-end="url(#m-dim-r)"/>
+          <!-- tick marks -->
+          <line x1="82" y1="47"  x2="92" y2="47"  stroke="#444" stroke-width="1"/>
+          <line x1="82" y1="377" x2="92" y2="377" stroke="#444" stroke-width="1"/>
+          <!-- label background -->
+          <rect x="12" y="196" width="68" height="30" rx="3" fill="rgba(255,255,255,0.92)" stroke="#CCC" stroke-width="0.8"/>
+          <text x="46" y="208" text-anchor="middle" font-size="11" fill="#222" font-family="'Space Mono',monospace" font-weight="700">271 cm</text>
+          <text x="46" y="221" text-anchor="middle" font-size="8"  fill="#777" font-family="'Space Mono',monospace">height</text>
+
+          <!-- WIDTH: 719 cm — front face, from left (162,387) to right (386,387) -->
+          <line x1="162" y1="400" x2="386" y2="400" stroke="#444" stroke-width="1.2"
+                marker-start="url(#m-dim)" marker-end="url(#m-dim-r)"/>
+          <line x1="162" y1="397" x2="162" y2="407" stroke="#444" stroke-width="1"/>
+          <line x1="386" y1="397" x2="386" y2="407" stroke="#444" stroke-width="1"/>
+          <rect x="229" y="408" width="90" height="15" rx="2" fill="rgba(255,255,255,0.92)" stroke="#CCC" stroke-width="0.8"/>
+          <text x="274" y="419" text-anchor="middle" font-size="10.5" fill="#222" font-family="'Space Mono',monospace" font-weight="700">719 cm</text>
+
+          <!-- THICKNESS: 6 cm — small callout on front face left truss -->
+          <line x1="168" y1="285" x2="182" y2="285" stroke="#888" stroke-width="0.9"
+                marker-start="url(#m-dim)" marker-end="url(#m-dim-r)"/>
+          <text x="162" y="296" text-anchor="middle" font-size="8" fill="#888" font-family="'Space Mono',monospace">6cm</text>
+
+          <!-- DIAGONAL: 762 cm — along the rafter slope line -->
+          <text x="265" y="195" text-anchor="middle" font-size="9" fill="#999"
+                font-family="'Space Mono',monospace" transform="rotate(-30,265,195)">⌀ 762 cm</text>
+
+          <!-- ══ SMALL REFERENCE IMAGES ══ -->
+          <!-- Image Additional scaled to 210×178, at x=10, y=430 -->
+          <image href="IFC angles/Image Additional.png" x="10" y="430" width="210" height="178"
+                 preserveAspectRatio="xMidYMid meet"
+                 style="filter:drop-shadow(1px 2px 5px rgba(0,0,0,0.15))"/>
+          <rect x="10" y="430" width="210" height="178" fill="none" stroke="#CCC" stroke-width="1"/>
+          <!-- caption -->
+          <rect x="10" y="596" width="210" height="22" fill="#1B3A26"/>
+          <text x="115" y="610" text-anchor="middle" font-size="8.5" fill="#A8D8B4"
+                font-family="'Space Mono',monospace">Ring · ropes · brick sokkel below</text>
+
+          <!-- image5 (1002×640) scaled to 280×179, at x=235, y=430 -->
+          <image href="IFC angles/image5.png" x="233" y="430" width="280" height="179"
+                 preserveAspectRatio="xMidYMid meet"
+                 style="filter:drop-shadow(1px 2px 5px rgba(0,0,0,0.15))"/>
+          <rect x="233" y="430" width="280" height="179" fill="none" stroke="#CCC" stroke-width="1"/>
+          <rect x="233" y="596" width="280" height="22" fill="#1B3A26"/>
+          <text x="373" y="610" text-anchor="middle" font-size="8.5" fill="#A8D8B4"
+                font-family="'Space Mono',monospace">Tarp roof clearly shown (purple)</text>
+
+          <!-- image1 (987×571) scaled to 200×116, at x=526, y=500 -->
+          <image href="IFC angles/image1.png" x="525" y="490" width="196" height="114"
+                 preserveAspectRatio="xMidYMid meet"
+                 style="filter:drop-shadow(1px 2px 5px rgba(0,0,0,0.15))"/>
+          <rect x="525" y="490" width="196" height="114" fill="none" stroke="#CCC" stroke-width="1"/>
+          <rect x="525" y="596" width="196" height="22" fill="#1B3A26"/>
+          <text x="623" y="610" text-anchor="middle" font-size="8.5" fill="#A8D8B4"
+                font-family="'Space Mono',monospace">Top perspective</text>
+
+          <!-- small thumbnail labels above -->
+          <text x="115" y="426" text-anchor="middle" font-size="8.5" fill="#888"
+                font-family="'Space Mono',monospace" letter-spacing="1">IFC REF / RING+ROPES VIEW</text>
+          <text x="373" y="426" text-anchor="middle" font-size="8.5" fill="#888"
+                font-family="'Space Mono',monospace" letter-spacing="1">IFC REF / TARP VIEW</text>
+          <text x="623" y="486" text-anchor="middle" font-size="8.5" fill="#888"
+                font-family="'Space Mono',monospace" letter-spacing="1">IFC REF / TOP VIEW</text>
+
+          <!-- ══ ANNOTATION CALLOUT BOXES (right side) ══ -->
+          <!-- Each box: rect + colored left stripe + title + dims + arrow to image -->
+
+          <!-- ─ C1: BIG TRUSSES (orange-red) ─ -->
+          <!-- Arrow 1: from box → LEFT WALL truss (visible on left face of pavilion) -->
+          <path d="M 755,65 C 580,60 380,100 155,205"
+                stroke="#E05A2B" stroke-width="1.8" fill="none" stroke-dasharray="7,4"
+                marker-end="url(#m-c1)"/>
+          <!-- Arrow 1 label: WALL -->
+          <rect x="565" y="50" width="42" height="13" rx="2" fill="rgba(224,90,43,0.9)"/>
+          <text x="586" y="60" text-anchor="middle" font-size="7.5" fill="#FFF" font-family="'Space Mono',monospace" font-weight="700">WALL ×4</text>
+          <!-- Arrow 2: from box → FLOOR STRUCTURE (front edge of deck, where floor trusses sit) -->
+          <path d="M 755,95 C 650,130 530,300 370,388"
+                stroke="#E05A2B" stroke-width="1.8" fill="none" stroke-dasharray="7,4"
+                marker-end="url(#m-c1)"/>
+          <!-- Arrow 2 label: FLOOR -->
+          <rect x="575" y="275" width="48" height="13" rx="2" fill="rgba(224,90,43,0.9)"/>
+          <text x="599" y="285" text-anchor="middle" font-size="7.5" fill="#FFF" font-family="'Space Mono',monospace" font-weight="700">FLOOR ×4</text>
+          <!-- box -->
+          <rect x="755" y="30" width="430" height="90" rx="4" fill="#FFF5F1" stroke="#E05A2B" stroke-width="1.5"/>
+          <rect x="755" y="30" width="6"   height="90" rx="3" fill="#E05A2B"/>
+          <text x="773" y="52"  font-size="11"  fill="#E05A2B" font-family="'Space Mono',monospace" font-weight="700">8 × BIG TRUSS  (of 17 available)</text>
+          <text x="773" y="68"  font-size="10"  fill="#333"    font-family="'Inter',sans-serif">4 flat on floor  +  2 per open face × 2 faces</text>
+          <text x="773" y="83"  font-size="9.5" fill="#555"    font-family="'Space Mono',monospace">L 719 cm  ×  W 6 cm  ×  H 271 cm  ·  ⌀ 762 cm</text>
+          <text x="773" y="108" font-size="9"   fill="#999"    font-family="'Inter',sans-serif">9 remaining trusses stay in ETH stock for other projects</text>
+          <!-- "not all 17" badge -->
+          <rect x="1050" y="38" width="125" height="18" rx="9" fill="#FFF3E0" stroke="#FFB74D" stroke-width="1"/>
+          <text x="1113" y="51" text-anchor="middle" font-size="8.5" fill="#8D4600" font-family="'Inter',sans-serif" font-weight="700">9 stay in inventory</text>
+
+          <!-- ─ C4: 4 ROOF BEAMS + TARP (blue) ─ -->
+          <!-- Arrow 1: roof beam to top-left corner -->
+          <path d="M 755,148 C 680,110 580,75 390,52"
+                stroke="#2980B9" stroke-width="1.8" fill="none" stroke-dasharray="7,4"
+                marker-end="url(#m-c4)"/>
+          <!-- Arrow 2: tarp drape label -->
+          <rect x="530" y="60" width="52" height="13" rx="2" fill="rgba(41,128,185,0.9)"/>
+          <text x="556" y="70" text-anchor="middle" font-size="7.5" fill="#FFF" font-family="'Space Mono',monospace" font-weight="700">TARP OVER</text>
+          <rect x="755" y="128" width="430" height="85" rx="4" fill="#EFF5FF" stroke="#2980B9" stroke-width="1.5"/>
+          <rect x="755" y="128" width="6"   height="85" rx="3" fill="#2980B9"/>
+          <text x="773" y="148" font-size="11"  fill="#1A5A8A" font-family="'Space Mono',monospace" font-weight="700">4 × BEAMS FOR ROOF + TARP</text>
+          <text x="773" y="164" font-size="10"  fill="#333"    font-family="'Inter',sans-serif">4 hip-rafter beams from ring → 4 corners, forming the roof shape</text>
+          <text x="773" y="179" font-size="9.5" fill="#555"    font-family="'Space Mono',monospace">W 19 cm  ×  D 9 cm  ×  L 350 cm  ·  tarp draped over top</text>
+          <text x="773" y="194" font-size="9"   fill="#999"    font-family="'Inter',sans-serif">Tarp = only new-purchase item · removable at end of pavilion life</text>
+
+          <!-- ─ C5: 2 VERTICAL COLUMN BEAMS (green) ─ -->
+          <!-- Arrow 1: to left column post -->
+          <path d="M 755,262 C 640,250 480,230 230,185"
+                stroke="#27AE60" stroke-width="1.8" fill="none" stroke-dasharray="7,4"
+                marker-end="url(#m-c5)"/>
+          <!-- Arrow 2: to right/back column post -->
+          <path d="M 755,270 C 680,285 530,310 345,348"
+                stroke="#27AE60" stroke-width="1.4" fill="none" stroke-dasharray="5,4" opacity="0.65"
+                marker-end="url(#m-c5)"/>
+          <!-- label: 2 opp faces -->
+          <rect x="370" y="162" width="68" height="13" rx="2" fill="rgba(39,174,96,0.9)"/>
+          <text x="404" y="172" text-anchor="middle" font-size="7.5" fill="#FFF" font-family="'Space Mono',monospace" font-weight="700">COL ×2 FACES</text>
+          <rect x="755" y="235" width="430" height="85" rx="4" fill="#EFF8F2" stroke="#27AE60" stroke-width="1.5"/>
+          <rect x="755" y="235" width="6"   height="85" rx="3" fill="#27AE60"/>
+          <text x="773" y="255" font-size="11"  fill="#1B6A30" font-family="'Space Mono',monospace" font-weight="700">2 × COLUMN BEAMS</text>
+          <text x="773" y="271" font-size="10"  fill="#333"    font-family="'Inter',sans-serif">1 vertical column per face · 2 opposite open faces only</text>
+          <text x="773" y="286" font-size="9.5" fill="#555"    font-family="'Space Mono',monospace">W 19 cm  ×  D 9 cm  ×  H 270 cm  (cut from 350 cm)</text>
+          <text x="773" y="300" font-size="9"   fill="#999"    font-family="'Inter',sans-serif">The other 2 faces stay open with no column needed</text>
+
+          <!-- ══ MATERIAL OVERVIEW BOX ══ -->
+          <rect x="755" y="328" width="430" height="90" rx="4" fill="#1B3A26"/>
+          <!-- top strip -->
+          <rect x="755" y="328" width="430" height="20" rx="4" fill="#27AE60"/>
+          <rect x="755" y="340" width="430" height="8" fill="#27AE60"/>
+          <text x="970" y="343" text-anchor="middle" font-size="9" fill="#FFF" font-family="'Space Mono',monospace" font-weight="700" letter-spacing="2">DESIGN MATERIAL OVERVIEW</text>
+          <!-- count items -->
+          <text x="780" y="362" font-size="10" fill="#C8EBD4" font-family="'Inter',sans-serif">
+            <tspan font-weight="700" fill="#FFF">8×</tspan> Big trusses (4 floor + 4 wall)  ·  <tspan font-weight="700" fill="#FFF">6×</tspan> beams total (19×9 cm)
+          </text>
+          <text x="780" y="378" font-size="10" fill="#C8EBD4" font-family="'Inter',sans-serif">
+            ↳ <tspan fill="#A8D8B4">2 vertical columns</tspan> (on 2 opposite faces)  +  <tspan fill="#A8D8B4">4 roof beams</tspan> (hip rafters, tarp over)
+          </text>
+          <text x="780" y="394" font-size="10" fill="#C8EBD4" font-family="'Inter',sans-serif">
+            Flooring boards on brick sokkel  ·  <tspan font-weight="700" fill="#FFCC60">Ring</tspan> + ropes as tension hub
+          </text>
+
+          <!-- ══ SCALE / NORTH INDICATOR ══ -->
+          <rect x="755" y="432" width="130" height="40" rx="3" fill="rgba(27,58,38,0.1)" stroke="#CCC" stroke-width="1"/>
+          <text x="820" y="446" text-anchor="middle" font-size="8" fill="#777" font-family="'Space Mono',monospace" letter-spacing="1">SCALE</text>
+          <text x="820" y="461" text-anchor="middle" font-size="10" fill="#333" font-family="'Space Mono',monospace" font-weight="700">N.T.S.</text>
+          <text x="820" y="467" text-anchor="middle" font-size="7" fill="#AAA" font-family="'Space Mono',monospace">IFC view, indicative</text>
+
+          <!-- ══ DIMENSION GUIDE IN CORNER ══ -->
+          <rect x="895" y="432" width="290" height="75" rx="3" fill="rgba(255,255,255,0.7)" stroke="#DDD" stroke-width="1"/>
+          <text x="910" y="447" font-size="8.5" fill="#777" font-family="'Space Mono',monospace" letter-spacing="1">KEY MEASUREMENTS</text>
+          <text x="910" y="461" font-size="9.5" fill="#333" font-family="'Inter',sans-serif">Big truss: <tspan font-family="'Space Mono',monospace" fill="#1B3A26">719×6×271 cm</tspan></text>
+          <text x="910" y="475" font-size="9.5" fill="#333" font-family="'Inter',sans-serif">Beams: <tspan font-family="'Space Mono',monospace" fill="#1B3A26">19×9 cm</tspan>  2 col (270cm) + 4 roof (350cm)</text>
+          <text x="910" y="489" font-size="9.5" fill="#333" font-family="'Inter',sans-serif">Floor board: <tspan font-family="'Space Mono',monospace" fill="#1B3A26">11.5 cm × 1.5 cm</tspan>  var. lengths</text>
+
+          <!-- ══ NEW MATERIAL BOXES ══ -->
+
+          <!-- ─ C2: FLOORING BOARDS (yellow) ─ -->
+          <path d="M 755,530 C 680,460 520,420 390,385"
+                stroke="#D4A020" stroke-width="1.8" fill="none" stroke-dasharray="7,4"
+                marker-end="url(#m-c2)"/>
+          <rect x="755" y="507" width="430" height="60" rx="4" fill="#FFFCF0" stroke="#D4A020" stroke-width="1.5"/>
+          <rect x="755" y="507" width="6"   height="60" rx="3" fill="#D4A020"/>
+          <text x="773" y="526" font-size="11"  fill="#8D5A00" font-family="'Space Mono',monospace" font-weight="700">FLOORING BOARDS</text>
+          <text x="773" y="541" font-size="10"  fill="#333"    font-family="'Inter',sans-serif">11.5 cm wide · various lengths · 1.5 cm thick</text>
+          <text x="773" y="556" font-size="9"   fill="#999"    font-family="'Inter',sans-serif">Deck surface laid over the 4 floor trusses · project stock</text>
+
+          <!-- ─ C3: BRICK SOKKEL (purple) ─ -->
+          <path d="M 755,600 C 550,600 350,590 165,575"
+                stroke="#9B59B6" stroke-width="1.8" fill="none" stroke-dasharray="7,4"
+                marker-end="url(#m-c3)"/>
+          <rect x="755" y="576" width="430" height="55" rx="4" fill="#F9F0FF" stroke="#9B59B6" stroke-width="1.5"/>
+          <rect x="755" y="576" width="6"   height="55" rx="3" fill="#9B59B6"/>
+          <text x="773" y="595" font-size="11"  fill="#6C3483" font-family="'Space Mono',monospace" font-weight="700">BRICK SOKKEL</text>
+          <text x="773" y="610" font-size="10"  fill="#333"    font-family="'Inter',sans-serif">Base / levelling support under floor trusses</text>
+          <text x="773" y="623" font-size="9"   fill="#999"    font-family="'Inter',sans-serif">Stacked bricks elevate &amp; stabilise trusses off ground</text>
+
+          <!-- ─ C6+C7: RING + ROPES (teal) ─ -->
+          <path d="M 755,672 C 550,640 320,570 165,512"
+                stroke="#16A085" stroke-width="1.8" fill="none" stroke-dasharray="7,4"
+                marker-end="url(#m-c6)"/>
+          <rect x="755" y="645" width="430" height="70" rx="4" fill="#E8F8F5" stroke="#16A085" stroke-width="1.5"/>
+          <rect x="755" y="645" width="6"   height="70" rx="3" fill="#16A085"/>
+          <text x="773" y="664" font-size="11"  fill="#0E6655" font-family="'Space Mono',monospace" font-weight="700">RING (steering wheel)  +  ROPES</text>
+          <text x="773" y="679" font-size="10"  fill="#333"    font-family="'Inter',sans-serif">Old steering wheel as central tension hub, fully reused</text>
+          <text x="773" y="694" font-size="9.5" fill="#555"    font-family="'Space Mono',monospace">Ropes radiate from ring → 4 truss corners · holds tarp form</text>
+          <text x="773" y="707" font-size="9"   fill="#999"    font-family="'Inter',sans-serif">Fully circular: repurposed ring with a dismountable rope system</text>
+
+        </svg>
+      </div>
+    </div>
+
+  </div><!-- /body -->
+
+  <!-- CAPTION BAR -->
+  <div class="caption">
+    <div class="cap-icon">↯</div>
+    <div class="cap-text">
+      From the full ETH inventory we <em>selected 7 material types</em>; everything else stays in stock.
+      The IFC model shows <em>8 big trusses</em>: 4 laid flat as the floor structure + 4 on walls. <em>6 beams (19×9 cm)</em> in two roles: <em>2 vertical columns</em> on 2 opposite open faces (cut to 270 cm), and <em>4 roof beams</em> acting as hip rafters from the central ring to the 4 corners (350 cm). Floor deck from <em>flooring boards (11.5 cm wide × 1.5 cm thick)</em> on a <em>brick sokkel</em> that levels the trusses off the ground.
+      A central <em>ring (old steering wheel)</em> with <em>ropes</em> ties the 4 roof beams together, and a single <em>tarpaulin</em> draped over them completes the roof. The tarp is the only new purchase in the whole design, and it comes off cleanly at the end.
+    </div>
+  </div>
+
+</div>
+<script>
+  function toggleInv() {
+    var col = document.getElementById('inv-col');
+    var btn = document.getElementById('inv-btn');
+    col.classList.toggle('open');
+    btn.classList.toggle('open');
+  }
+</script>
+</body>
+</html>
